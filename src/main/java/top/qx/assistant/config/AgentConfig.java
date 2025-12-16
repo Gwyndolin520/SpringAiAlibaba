@@ -9,10 +9,7 @@ import org.springframework.ai.tool.function.FunctionToolCallback;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import top.qx.assistant.tool.CampusInfoTool;
-import top.qx.assistant.tool.CourseQueryTool;
-import top.qx.assistant.tool.LibrarySeatTool;
-import top.qx.assistant.tool.WeatherTool;
+import top.qx.assistant.tool.*;
 
 /**
  * @author mqxu
@@ -32,7 +29,9 @@ public class AgentConfig {
             1. 查询天气信息，帮助学生决定穿衣和出行
             2. 查询课程表，提醒学生上课时间地点
             3. 查询图书馆座位情况，帮助学生找到自习位置
-            4. 回答各类校园生活问题
+            4. 查询学生成绩和绩点信息
+            5. 查询校园一卡通余额和消费记录
+            6. 回答各类校园生活问题
             
             行为准则：
             - 使用轻松友好的语气，像学长学姐一样亲切
@@ -44,8 +43,15 @@ public class AgentConfig {
             工具使用规则：
             - 查询天气：当学生提到天气、温度、穿衣建议时使用 getWeather 工具
             - 查询课程：当学生问课程、课表、上课地点时使用 getCourseInfo 工具（需要学号）
+            - 查询成绩：当学生问成绩、绩点、分数时使用 getGradeInfo 工具
+            - 查询一卡通：当学生问校园卡、余额、消费时使用 getCardInfo 工具
             - 查询图书馆：当学生问图书馆、自习、座位时使用 getLibrarySeat 工具
             - 校园信息：其他校园相关问题使用 getCampusInfo 工具
+            
+            重要提示：
+            - 学生可能不会直接提供学号，你需要从对话中提取或询问学号
+            - 对于成绩和一卡通查询，必须要有学号才能查询
+            - 如果学生没有提供学号，请主动询问
             """;
 
     @Bean
@@ -55,14 +61,12 @@ public class AgentConfig {
                 .build();
     }
 
-
     @Bean
     public DashScopeChatModel chatModel(DashScopeApi dashScopeApi) {
         return DashScopeChatModel.builder()
                 .dashScopeApi(dashScopeApi)
                 .build();
     }
-
 
     @Bean
     public ToolCallback campusInfoToolCallback(CampusInfoTool campusInfoTool) {
@@ -86,7 +90,7 @@ public class AgentConfig {
     public ToolCallback courseQueryToolCallback(CourseQueryTool courseQueryTool) {
         return FunctionToolCallback
                 .builder("getCourseInfo", courseQueryTool)
-                .description("查询课程信息，如课程名称、时间、地点")
+                .description("查询课程信息，如课程名称、时间、地点，需要学生学号")
                 .inputType(String.class)
                 .build();
     }
@@ -100,17 +104,46 @@ public class AgentConfig {
                 .build();
     }
 
+    // 新增：成绩查询工具回调
+    @Bean
+    public ToolCallback gradeQueryToolCallback(GradeQueryTool gradeQueryTool) {
+        return FunctionToolCallback
+                .builder("getGradeInfo", gradeQueryTool)
+                .description("查询学生成绩信息，包括各科成绩、绩点、平均分等，需要学生学号")
+                .inputType(String.class)
+                .build();
+    }
+
+    // 新增：一卡通查询工具回调
+    @Bean
+    public ToolCallback campusCardToolCallback(CampusCardTool campusCardTool) {
+        return FunctionToolCallback
+                .builder("getCardInfo", campusCardTool)
+                .description("查询校园一卡通信息，包括余额、消费记录、充值记录等，需要学生学号")
+                .inputType(String.class)
+                .build();
+    }
+
     @Bean
     public ReactAgent reactAgent(DashScopeChatModel chatModel,
                                  ToolCallback campusInfoToolCallback,
                                  ToolCallback weatherToolToolCallback,
                                  ToolCallback courseQueryToolCallback,
-                                 ToolCallback librarySeatToolCallback) {
+                                 ToolCallback librarySeatToolCallback,
+                                 ToolCallback gradeQueryToolCallback,      // 新增
+                                 ToolCallback campusCardToolCallback) {    // 新增
         return ReactAgent.builder()
                 .name("campus_assistant")
                 .model(chatModel)
                 .systemPrompt(SYSTEM_PROMPT)
-                .tools(campusInfoToolCallback, weatherToolToolCallback, courseQueryToolCallback, librarySeatToolCallback)
+                .tools(
+                        campusInfoToolCallback,
+                        weatherToolToolCallback,
+                        courseQueryToolCallback,
+                        librarySeatToolCallback,
+                        gradeQueryToolCallback,    // 新增
+                        campusCardToolCallback     // 新增
+                )
                 .saver(new MemorySaver())
                 .build();
     }

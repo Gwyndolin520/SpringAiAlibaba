@@ -1,3 +1,4 @@
+// top.qx.assistant.model.AssistantResponse.java
 package top.qx.assistant.model;
 
 import lombok.Data;
@@ -17,8 +18,10 @@ public class AssistantResponse {
     private String answer;
     // 相关建议
     private String suggestion;
-    // 回答类型：weather/course/library/general
+    // 回答类型：weather/course/grade/card/campus/general
     private String type;
     // 是否需要进一步帮助
     private boolean needsFurtherHelp;
+    // 额外数据（JSON格式）
+    private String extraData;
 }
